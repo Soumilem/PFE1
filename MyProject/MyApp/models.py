@@ -28,6 +28,8 @@ class client_nni(models.Model):
         return  f"{self.NNI}"
 #User = get_user_model()
 
+
+
 class Client(models.Model):
     nni = models.CharField(max_length=10)
     nom = models.CharField(max_length=100)
@@ -48,6 +50,16 @@ class Banque(models.Model):
     def __str__(self):
         return f"{self.logo_banque}"
     
+
+class client_banque(models.Model):
+     NNI = models.DecimalField(max_digits=10, decimal_places=0)
+     num_compte = models.CharField(max_length=10, unique = True)
+     banque = models.ForeignKey(Banque, on_delete=models.CASCADE, related_name='client_banque')
+
+     
+     def __str__(self) :
+        return  f"{self.num_compte}"
+
 
 class Offers(models.Model):
     #demande_pret = models.ForeignKey(DemandePret, on_delete=models.CASCADE)
