@@ -14,7 +14,7 @@ from MyApp.permissions import Is_Client, Is_AdminBanque
 from .models import Banque, Client, DemandePret, Offers, User
 from .serializers import (BanqueSerializer, DemandePretSerializer, PretSerializer,ClientSerializer, OffreSerializer,
                            DemandePretWithOffreSerializer, ClientRegisterSerializer, 
-                           AdminBanqueregisterSerializer, enregistrerserializer)
+                           AdminBanqueregisterSerializer, enregistrerserializer, registerclientbank)
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 from django.db.models.signals import post_save
@@ -463,6 +463,19 @@ class ClientCreateView(APIView):
             serializer.save()
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
+
+
+
+
+class CreateView(APIView):
+    def post(self, request):
+        serializer = registerclientbank(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+
 
 
 

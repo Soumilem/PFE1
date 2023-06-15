@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Banque, Client, DemandePret, Offers, User, client_nni
+from .models import Banque, Client, DemandePret, Offers, User, client_nni, client_banque
 
 
 
@@ -89,4 +89,12 @@ class enregistrerserializer(serializers.ModelSerializer):
     class Meta:
         model = client_nni
         fields = '__all__'
+
+
+class registerclientbank(serializers.ModelSerializer):
+    class Meta:
+        model = client_banque
+        fields = '__all__'
+
+
 
