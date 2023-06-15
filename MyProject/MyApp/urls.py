@@ -1,8 +1,8 @@
 from django.urls import path
 from .views import( BanqueAPIView, BanqueDetail,DemandeAPIView,BanqueUpdate, BanqueDelete, 
                    CLientAPIView, ClientDetail, ClientUpdate, ClientDelete,  OffreAPIView, OffreDetail, 
-                   OffreUpdate, OffreDelete, CreationOffrePretView, 
-                   SoumettreDemandeView, AccepterDemandeView, RefuserDemandeView, ClientRegisterView, AdminBanqueRegister, UserLoginView)
+                   OffreUpdate, OffreDelete, CreationOffrePretView, ClientCreateView,
+                   SoumettreDemandeView, AccepterDemandeView, RefuserDemandeView, demnd,ClientRegisterView, AdminBanqueRegister, UserLoginView)
 
 urlpatterns = [
     path('banques/', BanqueAPIView.as_view(), name='banque-api'),
@@ -11,12 +11,14 @@ urlpatterns = [
     path('banques/<int:id>/delete/', BanqueDelete.as_view(), name='banque-delete-api'),
 
     ######### urls client 
+    path('enregistrer/', ClientCreateView.as_view()),
     path('client/', CLientAPIView.as_view(), name='banque-api'),
     path('client/<int:id>/', ClientDetail.as_view(), name='banque-detail-api'),
     path('client/<int:id>/update/', ClientUpdate.as_view(), name='banque-update-api'),
     path('client/<int:id>/delete/', ClientDelete.as_view(), name='banque-delete-api'),
 
     ######### urls Offre 
+         ################# rescuperer les offres selon l'id du banque 
     path('banques/<int:id_banque>/offers/', OffreAPIView.as_view(), name='banque-offers-api'),
     #path('offer/', CreateOffer.as_view(), name='banque-offers-api'),
     path('offre/<int:id>/', OffreDetail.as_view(), name='banque-detail-api'),
@@ -25,6 +27,7 @@ urlpatterns = [
 
     ########## urls demandepret
     path('demande/', DemandeAPIView.as_view()),
+    path('demandes/', demnd.as_view()),
     path('offre/', CreationOffrePretView.as_view(), name='calcul_mensualite'),
     path('demande/soumettre/', SoumettreDemandeView.as_view(), name='soumettre_demande'),
 

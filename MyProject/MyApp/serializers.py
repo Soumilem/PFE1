@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Banque, Client, DemandePret, Offers, User
+from .models import Banque, Client, DemandePret, Offers, User, client_nni
 
 
 
@@ -62,14 +62,14 @@ class ClientSerializer(serializers.ModelSerializer):
 class DemandePretSerializer(serializers.ModelSerializer):
     class Meta:
         model = DemandePret
-        fields = ['client','banque','num_telephone', 'num_compte','duree_emprunt','montant_emprunt', 'Salaire', 'cni', 'demande', 'contrat_de_travail', 'attestation_travail',
+        fields = ['client','banque','num_telephone', 'numero_compt','duree_emprunt','montant_emprunt', 'Salaire', 'cni', 'demande', 'contrat_de_travail', 'attestation_travail',
                   'justification_adresse', 'bulletins_de_salaire']
 
 
 class DemandePretWithOffreSerializer(serializers.ModelSerializer):
     class Meta:
         model = DemandePret
-        fields = ['client','banque','offre','num_telephone', 'num_compte', 'Salaire', 'cni', 'demande', 'contrat_de_travail', 'attestation_travail',
+        fields = ['client','banque','offre','num_telephone', 'numero_compt', 'Salaire', 'cni', 'demande', 'contrat_de_travail', 'attestation_travail',
                   'justification_adresse', 'bulletins_de_salaire'] 
 
 class OffreSerializer(serializers.ModelSerializer):
@@ -84,3 +84,9 @@ class PretSerializer(serializers.ModelSerializer):
         fields = ['montant_emprunt','Interet','duree_emprunt']
 
     
+
+class enregistrerserializer(serializers.ModelSerializer):
+    class Meta:
+        model = client_nni
+        fields = '__all__'
+

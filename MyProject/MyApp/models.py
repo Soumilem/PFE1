@@ -21,6 +21,11 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
             Token.objects.create(user= instance)
 
 
+class client_nni(models.Model):
+    NNI= models.DecimalField(max_digits=10, decimal_places=0, unique=True)
+    
+    def __str__(self) :
+        return  f"{self.NNI}"
 #User = get_user_model()
 
 class Client(models.Model):
@@ -28,7 +33,7 @@ class Client(models.Model):
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
     num_telephone = models.CharField(max_length=15)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     #password = models.CharField(max_length=25)
     def __str__(self):
         return f"{self.user}"
@@ -38,7 +43,7 @@ class Banque(models.Model):
     nom_banque = models.CharField(max_length=100)
     logo_banque = models.CharField(max_length=10)
     num_telephone = models.CharField(max_length=15)
-    responsable_banque = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     #password = models.CharField(max_length=25)
     def __str__(self):
         return f"{self.logo_banque}"

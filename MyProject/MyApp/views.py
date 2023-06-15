@@ -13,7 +13,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from MyApp.permissions import Is_Client, Is_AdminBanque
 from .models import Banque, Client, DemandePret, Offers, User
 from .serializers import (BanqueSerializer, DemandePretSerializer, PretSerializer,ClientSerializer, OffreSerializer,
-                           DemandePretWithOffreSerializer, ClientRegisterSerializer, AdminBanqueregisterSerializer)
+                           DemandePretWithOffreSerializer, ClientRegisterSerializer, 
+                           AdminBanqueregisterSerializer, enregistrerserializer)
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 from django.db.models.signals import post_save
@@ -25,12 +26,11 @@ from rest_framework.exceptions import ValidationError
 ########################## Banque API ##################
 
 class BanqueAPIView(APIView):
+    permission_classes = [IsAuthenticated&Is_Client]
     def get(self, request):
         banques = Banque.objects.all()
         serializer = BanqueSerializer(banques, many=True)
         return Response(serializer.data)
-
-    
 
 class BanqueDetail(APIView):
     def get(self, request, id):
@@ -78,8 +78,6 @@ class CLientAPIView(APIView):
         return Response(serializer.data)
 
     
-    
-
 class ClientDetail(APIView):
     def get(self, request, id):
         try:
@@ -115,8 +113,8 @@ class ClientDelete(APIView):
         client.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
 ########################## Offre API ##################
+
 class CreationOffrePretView(APIView):
     permission_classes = [IsAuthenticated&Is_AdminBanque]
 
@@ -128,14 +126,14 @@ class CreationOffrePretView(APIView):
             duree_emprunt = serializer.validated_data['duree_emprunt']
 
             # Obtention de la banque à partir de l'utilisateur authentifié
-            admin_banque = request.user
-            banque = admin_banque.banque
+            banque = request.user.banque
 
             # Vérification si l'offre existe déjà dans la banque
             if Offers.objects.filter(banque=banque).exists():
                 raise ValidationError("Une offre existe déjà pour cette banque.")
 
-            # Appel à la fonction de calcul de la mensualité
+           
+             # Appel à la fonction de calcul de la mensualité
             taux_mensuel = taux_interet / 100 / 12
             duree_mois = duree_emprunt
             mensualite = (montant_emprunt * taux_mensuel) / (1 - (1 + taux_mensuel) ** -duree_mois)
@@ -144,15 +142,15 @@ class CreationOffrePretView(APIView):
             montant_total = montant_emprunt * (1 + taux_mensuel * duree_mois)
             benefice = montant_total - montant_emprunt
 
-            # Création de l'offre de prêt avec les attributs calculés et la banque associée
+             # Création de l'offre de prêt avec les attributs calculés et la banque associée
             offre = Offers.objects.create(
-                banque=banque,
-                montant_emprunt=montant_emprunt,
-                Interet=taux_interet,
-                duree_emprunt=duree_emprunt,
-                mensualite=mensualite,
-                benefice_banque=montant_total
-            )
+                 banque=banque,
+                 montant_emprunt=montant_emprunt,
+                 Interet=taux_interet,
+                 duree_emprunt=duree_emprunt,
+                 mensualite=mensualite,
+                 benefice_banque=montant_total
+             )
 
             return Response({
                 'montant_emprunt': offre.montant_emprunt,
@@ -218,8 +216,31 @@ class OffreDelete(APIView):
 
 ######################### API DemandePret #########
 
+class demnd(APIView):
+    permission_classes =[IsAuthenticated&Is_AdminBanque]
+    def get(self, request):
+        # Récupérer l'utilisateur authentifié (la banque)
+        banque = request.user.banque
+        # Récupérer les demandes de prêt soumises à cette banque
+        demandes = DemandePret.objects.filter(banque=banque)
+
+        # Sérialiser les demandes
+        demandes_serializer = DemandePretWithOffreSerializer(demandes, many=True)
+
+        return Response(demandes_serializer.data)
 
 class DemandeAPIView(APIView):
+ permission_classes =[IsAuthenticated&Is_AdminBanque]
+ class DemandesPretView(APIView):
+    def get(self, request):
+        # Récupérer toutes les demandes de prêt
+        demandes = DemandePret.objects.all()
+
+        # Sérialiser les demandes
+        demandes_serializer = DemandePretSerializer(demandes, many=True)
+
+        return Response(demandes_serializer.data)
+
  permission_classes =[IsAuthenticated&Is_Client]
  def post(self, request):
         serializer = DemandePretWithOffreSerializer(data=request.data)
@@ -242,35 +263,64 @@ class DemandeAPIView(APIView):
         serializer = DemandePretWithOffreSerializer(banques, many=True)
         return Response(serializer.data)
 
- 
-
- 
- 
-
-
-
-
-
-
 ############################# soumettre en demande ###############
-class SoumettreDemandeView(APIView):
-    #@login_required
-    permission_classes = [IsAuthenticated&Is_Client]
 
+
+
+class DemandeAPI(APIView):
     def post(self, request):
-        #permission_classes = [AllowAny]
-       
+        # Récupérer les critères de sélection de la banque depuis la requête
+        criteres_banque = request.data.get('criteres_banque')
 
+        # Effectuer la recherche de la banque en fonction des critères
+        banques = Banque.objects.filter(**criteres_banque)
+
+        # Sérialiser les résultats de la sélection de la banque
+        banque_serializer = BanqueSerializer(banques, many=True)
+        
+        # Récupérer l'identifiant de la banque sélectionnée depuis la requête
+        banque_id = request.data.get('banque_id')
+
+        # Récupérer les offres de la banque sélectionnée
+        offres = Offers.objects.filter(banque=banque_id)
+
+        # Sérialiser les résultats de la sélection des offres
+        offre_serializer = OffreSerializer(offres, many=True)
+
+        # Sérialiser les données de la demande
+        demande_serializer = DemandePretSerializer(data=request.data.get('donnees_personnelles'))
+
+        if banque_serializer.is_valid() and offre_serializer.is_valid() and demande_serializer.is_valid():
+            # Sauvegarder la demande dans la base de données
+            demande = demande_serializer.save()
+
+            # Ajouter les offres sélectionnées à la demande
+            demande.offres.set(offres)
+
+            return Response({
+                'banques': banque_serializer.data,
+                'offres': offre_serializer.data,
+                'demande': demande_serializer.data
+            }, status=201)
+        
+        return Response({
+            'errors': {
+                'banque_errors': banque_serializer.errors,
+                'offre_errors': offre_serializer.errors,
+                'demande_errors': demande_serializer.errors
+            }
+        }, status=400)
+class SoumettreDemandeView(APIView):
+    permission_classes = [IsAuthenticated&Is_Client]
+    def post(self, request):
         banque_id = request.data.get('banque_id')
         offre_id = request.data.get('offre_id')
-        #client = get_object_or_404(Client, user=request.user)
 
         if request.user.is_authenticated:
           demande = DemandePret(
             client = request.user.client,  # Récupérer le client associé à l'utilisateur connecté
-            raison=request.data.get('raison'),
             num_telephone=request.data.get('num_telephone'),
-            num_compte=request.data.get('num_compte'),
+            numero_compt=request.data.get('numero_compt'),
             Salaire=request.data.get('Salaire'),
             cni=request.FILES.get('cni'),
             demande=request.FILES.get('demande'),
@@ -282,7 +332,19 @@ class SoumettreDemandeView(APIView):
 
           demande.soumettre_demande(banque_id=banque_id, offre_id=offre_id)
 
-          return Response({'message': 'Demande soumise avec succès'})
+          return Response({'message': 'Demande soumise avec succès',
+                'banque': demande.banque,
+                'offre': demande.offre,
+                'num_telephone': demande.num_telephone,
+                'numero_compt': demande.numero_compt,
+                'Salaire': demande.Salaire,
+                'cni': demande.cni,
+                'demandeecrit': demande.demande,
+                'contrat_de_travail': demande.contrat_de_travail,
+                'attestation_travail': demande.attestation_travail,
+                'justification_adresse': demande.justification_adresse,
+                'bulletins_de_salaire': demande.bulletins_de_salaire,
+                }, status=status.HTTP_201_CREATED)
         return Response({'message': 'user non autentifi'})
 
 ######################### accepter demande ###########
@@ -391,8 +453,16 @@ class UserLoginView(APIView):
             })
         return Response({'error': 'Invalid credentials.'})
     
-################################# Authentification #######################
+################################# enregistrer nni dans base de donnes #######################
 
+
+class ClientCreateView(APIView):
+    def post(self, request):
+        serializer = enregistrerserializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
 
 
 
