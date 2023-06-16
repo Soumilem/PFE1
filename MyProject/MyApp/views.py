@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from MyApp.permissions import Is_Client, Is_AdminBanque
-from .models import Banque, Client, DemandePret, Offers, User
+from .models import *
 from .serializers import (BanqueSerializer, DemandePretSerializer, PretSerializer,ClientSerializer, OffreSerializer,
                            DemandePretWithOffreSerializer, ClientRegisterSerializer, 
                            AdminBanqueregisterSerializer, enregistrerserializer, registerclientbank)
@@ -382,6 +382,20 @@ class ClientRegisterView(APIView):
                  if created:
                    instance.is_client = True
                    instance.save()
+            
+            try:
+                clien_nni=client_nni.objects.get(NNI=serializer.validated_data['nni'])
+            except client_nni.DoesNotExist:
+                return Response({"nni":"not_exit_nni"},status=status.HTTP_400_BAD_REQUEST)
+            
+            if  Client.objects.filter(nni=serializer.validated_data['nni']).exists():
+                return Response({"exit":"client exist already"},status=status.HTTP_400_BAD_REQUEST)
+
+            # try:
+            #     clientexit=Client.objects.get(nni=serializer.validated_data['nni'])
+            # except Client.DoesNotExist:
+            #     return Response({"exit":"not_exit_nni"},status=status.HTTP_400_BAD_REQUEST)
+            
             user = User.objects.create_user(
                 username=serializer.validated_data['username'],
                 password=serializer.validated_data['password']
@@ -469,13 +483,41 @@ class ClientCreateView(APIView):
 
 class CreateView(APIView):
     def post(self, request):
-        serializer = registerclientbank(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+      serializer = registerclientbank(data=request.data)
+      if serializer.is_valid():
+        banque_id = serializer.validated_data['banque_id']
+
+        try:
+             clien_nni=client_nni.objects.get(NNI=serializer.validated_data['nni'])
+        except client_nni.DoesNotExist:
+                return Response({"nni":"not_exit_nni"},status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+         banque = Banque.objects.get(id=banque_id)
+        except Banque.DoesNotExist:
+            return Response({"banque": "La banque n'existe pas."}, status=status.HTTP_400_BAD_REQUEST)
+
+            
+        
+        clienbank = client_banque.objects.create(
+                nni =serializer.validated_data['nni'],
+                num_compte =serializer.validated_data['num_compte'],
+                banque= banque_id,
+                #nom=serializer.validated_data['nom'],
+                #prenom=serializer.validated_data['prenom'],
+                #num_compte=serializer.validated_data['num_compte'],
+                #=serializer.validated_data['nom_banque'],
+                #logo_banque=serializer.validated_data['logo_banque']
+            )
+        #return Response({"exit":"client exist already"},status=status.HTTP_400_BAD_REQUEST)
+
+       
+        #serializer.save()
+        return Response(serializer.data, status=201)
+      return Response(serializer.errors, status=400)
 
 
+        
 
 
 

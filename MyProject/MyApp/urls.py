@@ -1,9 +1,5 @@
 from django.urls import path
-from .views import( BanqueAPIView, BanqueDetail,DemandeAPIView,BanqueUpdate, BanqueDelete, 
-                   CLientAPIView, ClientDetail, ClientUpdate, ClientDelete,  OffreAPIView, OffreDetail, 
-                   OffreUpdate, OffreDelete, CreationOffrePretView, ClientCreateView,
-                   SoumettreDemandeView, AccepterDemandeView, RefuserDemandeView, demnd,ClientRegisterView, AdminBanqueRegister, UserLoginView)
-
+from .views import *
 urlpatterns = [
     path('banques/', BanqueAPIView.as_view(), name='banque-api'),
     path('banques/<int:id>/', BanqueDetail.as_view(), name='banque-detail-api'),
@@ -11,6 +7,7 @@ urlpatterns = [
     path('banques/<int:id>/delete/', BanqueDelete.as_view(), name='banque-delete-api'),
 
     ######### urls client 
+    path('numcompte/', CreateView.as_view()),
     path('enregistrer/', ClientCreateView.as_view()),
     path('client/', CLientAPIView.as_view(), name='banque-api'),
     path('client/<int:id>/', ClientDetail.as_view(), name='banque-detail-api'),

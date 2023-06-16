@@ -34,7 +34,7 @@ class Client(models.Model):
     nni = models.CharField(max_length=10)
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
-    num_telephone = models.CharField(max_length=15)
+    num_telephone = models.PositiveIntegerField()
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     #password = models.CharField(max_length=25)
     def __str__(self):
@@ -44,7 +44,7 @@ class Client(models.Model):
 class Banque(models.Model):
     nom_banque = models.CharField(max_length=100)
     logo_banque = models.CharField(max_length=10)
-    num_telephone = models.CharField(max_length=15)
+    num_telephone = models.PositiveIntegerField()
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     #password = models.CharField(max_length=25)
     def __str__(self):
