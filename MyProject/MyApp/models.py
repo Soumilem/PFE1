@@ -20,15 +20,12 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
        if created:
             Token.objects.create(user= instance)
 
-
 class client_nni(models.Model):
     NNI= models.DecimalField(max_digits=10, decimal_places=0, unique=True)
     
     def __str__(self) :
         return  f"{self.NNI}"
 #User = get_user_model()
-
-
 
 class Client(models.Model):
     nni = models.CharField(max_length=10)
@@ -40,7 +37,6 @@ class Client(models.Model):
     def __str__(self):
         return f"{self.user}"
 
-
 class Banque(models.Model):
     nom_banque = models.CharField(max_length=100)
     logo_banque = models.CharField(max_length=10)
@@ -50,7 +46,6 @@ class Banque(models.Model):
     def __str__(self):
         return f"{self.user}"
     
-
 class client_banque(models.Model):
      NNI = models.DecimalField(max_digits=10, decimal_places=0)
      num_compte = models.CharField(max_length=10, unique = True)
@@ -59,7 +54,6 @@ class client_banque(models.Model):
      
      def __str__(self) :
         return  f"{self.num_compte}"
-
 
 class Offers(models.Model):
     #demande_pret = models.ForeignKey(DemandePret, on_delete=models.CASCADE)
