@@ -68,7 +68,6 @@ class Offers(models.Model):
     def __str__(self):
         return f"Offre de {self.banque} - Montant: {self.montant_emprunt}MRU - Taux: {self.Interet}% - Durée: {self.duree_emprunt} mois"
     
-
 class DemandePret(models.Model):
     STATUT_CHOICES = [
         ('attente', 'En attente'),
@@ -81,18 +80,20 @@ class DemandePret(models.Model):
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='attente')
     banque = models.ForeignKey(Banque, on_delete=models.SET_NULL, null=True, blank=True)
     offre = models.ForeignKey(Offers, on_delete=models.SET_NULL, null=True, blank=True)
-    num_telephone = models.DecimalField(max_digits=8, decimal_places=0)
+    num_telephone = models.PositiveIntegerField()
     #num_compte = models.CharField(max_length=10, null=True)
     numero_compt = models.CharField(max_length=10)
+    mensualite = models.DecimalField(max_digits=8, decimal_places=0, blank=True, null=True)
     duree_emprunt = models.PositiveIntegerField(null=True, blank=True)
     montant_emprunt = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    Salaire = models.PositiveIntegerField()
+    Salaire = models.DecimalField(max_digits=10, decimal_places=0)
     cni = models.FileField(upload_to="static/cni/")
     demande = models.FileField(upload_to='static/demande/')
     contrat_de_travail = models.FileField(upload_to='static/contrats_de_travail/')
     attestation_travail = models.FileField(upload_to='static/attestations_travail/')
     justification_adresse = models.FileField(upload_to='static/justifications_adresse/')
     bulletins_de_salaire = models.FileField(upload_to='static/bulletins_de_salaire/')
+    montant_total=models.DecimalField(max_digits=12, decimal_places=0, blank=True, null=True)
 
 
     def __str__(self):

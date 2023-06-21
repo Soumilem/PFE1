@@ -23,8 +23,8 @@ urlpatterns = [
     path('offre/<int:id>/delete/', OffreDelete.as_view(), name='banque-delete-api'),
 
     ########## urls demandepret
-    path('demande/', DemandeAPIView.as_view()),
-    path('demandes/', demnd.as_view()),
+    path('demande/', DemandeView.as_view()),
+    path('demandes/', getdemande.as_view()),
     path('offre/', CreationOffrePretView.as_view(), name='calcul_mensualite'),
     path('demande/soumettre/', SoumettreDemandeView.as_view(), name='soumettre_demande'),
 

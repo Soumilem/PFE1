@@ -1,3 +1,4 @@
+import decimal
 from imaplib import _Authenticator
 import base64
 from Crypto.Cipher import DES3
@@ -218,12 +219,9 @@ class OffreDelete(APIView):
         
         offre.delete()
 
-
-
-
 ######################### API DemandePret #########
 
-class demnd(APIView):
+class getdemande(APIView):
     permission_classes =[IsAuthenticated&Is_AdminBanque]
     def get(self, request):
         # Récupérer l'utilisateur authentifié (la banque)
@@ -242,19 +240,10 @@ class DemandeAPIView(APIView):
     def get(self, request):
         # Récupérer toutes les demandes de prêt
         demandes = DemandePret.objects.all()
-
         # Sérialiser les demandes
         demandes_serializer = DemandePretSerializer(demandes, many=True)
-
         return Response(demandes_serializer.data)
 
- permission_classes =[IsAuthenticated&Is_Client]
- def post(self, request):
-        serializer = DemandePretWithOffreSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response('Demande soumise avec succès', status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
  
  permission_classes =[IsAuthenticated&Is_Client]
  def post(self, request):
@@ -264,15 +253,89 @@ class DemandeAPIView(APIView):
             return Response('Demande soumise avec succès', status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
  
- permission_classes =[IsAuthenticated]
- def get(self, request):
-        banques = DemandePret.objects.all()
-        serializer = DemandePretWithOffreSerializer(banques, many=True)
-        return Response(serializer.data)
+class DemandeView(APIView):
+    permission_classes = [IsAuthenticated & Is_Client]
+
+    def post(self, request):
+        banque_id = request.data.get('banque_id')
+        #offre_id = request.data.get('offre_id')
+
+        if request.user.is_authenticated:
+            try:
+                client_instance = Client.objects.get(user=request.user)
+            except Client.DoesNotExist:
+                return Response({'message': 'Client instance not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            #client=client_instance,
+            num_telephone = request.data.get('num_telephone')[0]
+            numero_compt=request.data.get('numero_compt')
+            duree_emprunt= int(request.data.get('duree_emprunt'))
+            montant_emprunt=request.data.get('montant_emprunt')
+            Salaire = float(request.data.get('Salaire'))
+            mensualite = Salaire * 0.3
+            montant_total = mensualite*duree_emprunt
+
+            demande = DemandePret(
+                client=client_instance,
+                num_telephone=num_telephone,
+                numero_compt=numero_compt,
+                duree_emprunt= duree_emprunt,
+                montant_emprunt=montant_emprunt,
+                Salaire=Salaire,
+                mensualite=mensualite,
+                montant_total= montant_total
+                
+            )
+
+            # Handle file uploads separately to avoid decoding issues
+            cni_file = request.FILES.get('cni')
+            demande_file = request.FILES.get('demande')
+            contrat_de_travail_file = request.FILES.get('contrat_de_travail')
+            attestation_travail_file = request.FILES.get('attestation_travail')
+            justification_adresse_file = request.FILES.get('justification_adresse')
+            bulletins_de_salaire_file = request.FILES.get('bulletins_de_salaire')
+
+            # Assign the uploaded files to the respective fields
+            if cni_file:
+                demande.cni.save(cni_file.name, ContentFile(cni_file.read()))
+            if demande_file:
+                demande.demande.save(demande_file.name, ContentFile(demande_file.read()))
+            if contrat_de_travail_file:
+                demande.contrat_de_travail.save(contrat_de_travail_file.name, ContentFile(contrat_de_travail_file.read()))
+            if attestation_travail_file:
+                demande.attestation_travail.save(attestation_travail_file.name, ContentFile(attestation_travail_file.read()))
+            if justification_adresse_file:
+                demande.justification_adresse.save(justification_adresse_file.name, ContentFile(justification_adresse_file.read()))
+            if bulletins_de_salaire_file:
+                demande.bulletins_de_salaire.save(bulletins_de_salaire_file.name, ContentFile(bulletins_de_salaire_file.read()))
+
+            demande.save()
+
+            # demande.soumettre_demande(banque_id=banque_id, offre_id=offre_id)
+
+            return Response(
+                {
+                    'message': 'Demande soumise avec succès',
+                    'duree_emprunt': demande.duree_emprunt,
+                    'montant': demande.montant_emprunt,
+                    'mensualite': demande.mensualite,
+                    'montant_total': demande.montant_total,
+                    'num_telephone': demande.num_telephone,
+                    'numero_compt': demande.numero_compt,
+                    'Salaire': demande.Salaire,
+                    'cni': demande.cni.url if demande.cni else None,
+                    'demandeecrit': demande.demande.url if demande.demande else None,
+                    'contrat_de_travail': demande.contrat_de_travail.url if demande.contrat_de_travail else None,
+                    'attestation_travail': demande.attestation_travail.url if demande.attestation_travail else None,
+                    'justification_adresse': demande.justification_adresse.url if demande.justification_adresse else None,
+                    'bulletins_de_salaire': demande.bulletins_de_salaire.url if demande.bulletins_de_salaire else None,
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response({'message': 'Utilisateur non authentifié.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 ############################# soumettre en demande ###############
-
-
 
 class DemandeAPI(APIView):
     def post(self, request):
@@ -405,7 +468,6 @@ class RefuserDemandeView(APIView):
 
         return Response({'message': 'La demande a été refusée.'})
 
-
 #####################################
 class ClientRegisterView(APIView):
     permission_classes = [AllowAny]
@@ -446,9 +508,7 @@ class ClientRegisterView(APIView):
             return Response({'message': 'Client registered successfully.'})
         return Response(serializer.errors)
     
-
 #################################### register AdminBanque ######################################    
-
 class AdminBanqueRegister(APIView):
     permission_classes = [AllowAny]
 
@@ -505,7 +565,6 @@ class UserLoginView(APIView):
     
 ################################# enregistrer nni dans base de donnes #######################
 
-
 class ClientCreateView(APIView):
     def post(self, request):
         serializer = enregistrerserializer(data=request.data)
@@ -513,7 +572,6 @@ class ClientCreateView(APIView):
             serializer.save()
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
-
 
 
 
