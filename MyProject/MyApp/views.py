@@ -258,7 +258,7 @@ class DemandeView(APIView):
 
     def post(self, request):
         banque_id = request.data.get('banque_id')
-        #offre_id = request.data.get('offre_id')
+        num_compte = request.data.get('num_compte')
 
         if request.user.is_authenticated:
             try:
@@ -266,9 +266,15 @@ class DemandeView(APIView):
             except Client.DoesNotExist:
                 return Response({'message': 'Client instance not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
+
+            try:
+                client_banque = ClientBanque.objects.get(num_compte=num_compte)
+            except ClientBanque.DoesNotExist:
+                return Response({'message': 'Numéro de compte invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
             #client=client_instance,
             num_telephone = request.data.get('num_telephone')[0]
-            numero_compt=request.data.get('numero_compt')
+            numero_compt=num_compte
             duree_emprunt= int(request.data.get('duree_emprunt'))
             montant_emprunt=request.data.get('montant_emprunt')
             Salaire = float(request.data.get('Salaire'))
@@ -386,17 +392,24 @@ class SoumettreDemandeView(APIView):
     def post(self, request):
         banque_id = request.data.get('banque_id')
         offre_id = request.data.get('offre_id')
+        num_compte = request.data.get('numero_compt')
+
 
         if request.user.is_authenticated:
             try:
                 client_instance = Client.objects.get(user=request.user)
             except Client.DoesNotExist:
                 return Response({'message': 'Client instance not found.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                client_banque = ClientBanque.objects.get(num_compte=num_compte)
+            except ClientBanque.DoesNotExist:
+                return Response({'message': 'Numéro de compte invalide.'}, status=status.HTTP_400_BAD_REQUEST)
 
             demande = DemandePret(
                 client=client_instance,
                 num_telephone=request.data.get('num_telephone'),
-                numero_compt=request.data.get('numero_compt'),
+                numero_compt=num_compte,
                 Salaire=request.data.get('Salaire'),
             )
 
@@ -803,7 +816,6 @@ class ClientBanqueCreateAPIView(APIView):
         except Banque.DoesNotExist:
             return Response({'message': 'Bank with the provided ID does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # client_banque = ClientBanque(NNI=client_nni, num_compte=num_compte, banque=banque)
         client_banque = ClientBanque(NNI=nni, num_compte=num_compte, banque=banque)
 
         print("before save")
