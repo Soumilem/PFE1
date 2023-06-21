@@ -7,7 +7,7 @@ urlpatterns = [
     path('banques/<int:id>/delete/', BanqueDelete.as_view(), name='banque-delete-api'),
 
     ######### urls client 
-    path('numcompte/', CreerClientBanqueAPIView.as_view()),
+    path('numcompte/', ClientBanqueCreateAPIView.as_view()),
     path('enregistrer/', ClientCreateView.as_view()),
     path('client/', CLientAPIView.as_view(), name='banque-api'),
     path('client/<int:id>/', ClientDetail.as_view(), name='banque-detail-api'),
@@ -26,7 +26,7 @@ urlpatterns = [
     path('demande/', DemandeView.as_view()),
     path('demandes/', getdemande.as_view()),
     path('offre/', CreationOffrePretView.as_view(), name='calcul_mensualite'),
-    path('demande/soumettre/', SoumettreDemandeView.as_view(), name='soumettre_demande'),
+    path('demandeOffre/soumettre/', SoumettreDemandeView.as_view(), name='soumettre_demande'),
 
     ########## Authentification 
     path('register/client/', ClientRegisterView.as_view(), name='client-register'),

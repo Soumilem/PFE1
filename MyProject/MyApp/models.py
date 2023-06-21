@@ -20,11 +20,6 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
        if created:
             Token.objects.create(user= instance)
 
-class client_nni(models.Model):
-    NNI= models.DecimalField(max_digits=10, decimal_places=0, unique=True)
-    
-    def __str__(self) :
-        return  f"{self.NNI}"
 #User = get_user_model()
 
 class Client(models.Model):
@@ -46,12 +41,19 @@ class Banque(models.Model):
     def __str__(self):
         return f"{self.user}"
     
-class client_banque(models.Model):
+
+class CLientNNI(models.Model):
+    NNI= models.DecimalField(max_digits=10, decimal_places=0, unique=True)
+    
+    def __str__(self) :
+        return  f"{self.NNI}"
+
+class ClientBanque(models.Model):
      NNI = models.DecimalField(max_digits=10, decimal_places=0)
      num_compte = models.CharField(max_length=10, unique = True)
-     banque = models.ForeignKey(Banque, on_delete=models.CASCADE, related_name='client_banque')
+     banque = models.ForeignKey(Banque, on_delete=models.CASCADE)
 
-     
+    #  , related_name='client_banque'
      def __str__(self) :
         return  f"{self.num_compte}"
 
