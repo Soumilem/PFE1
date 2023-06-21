@@ -7,7 +7,7 @@ urlpatterns = [
     path('banques/<int:id>/delete/', BanqueDelete.as_view(), name='banque-delete-api'),
 
     ######### urls client 
-    path('numcompte/', CreateView.as_view()),
+    path('numcompte/', CreerClientBanqueAPIView.as_view()),
     path('enregistrer/', ClientCreateView.as_view()),
     path('client/', CLientAPIView.as_view(), name='banque-api'),
     path('client/<int:id>/', ClientDetail.as_view(), name='banque-detail-api'),

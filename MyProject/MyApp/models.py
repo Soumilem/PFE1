@@ -48,7 +48,7 @@ class Banque(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     #password = models.CharField(max_length=25)
     def __str__(self):
-        return f"{self.logo_banque}"
+        return f"{self.user}"
     
 
 class client_banque(models.Model):
@@ -93,7 +93,7 @@ class DemandePret(models.Model):
     duree_emprunt = models.PositiveIntegerField(null=True, blank=True)
     montant_emprunt = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     Salaire = models.PositiveIntegerField()
-    cni = models.FileField(upload_to='static/cni/')
+    cni = models.FileField(upload_to="static/cni/")
     demande = models.FileField(upload_to='static/demande/')
     contrat_de_travail = models.FileField(upload_to='static/contrats_de_travail/')
     attestation_travail = models.FileField(upload_to='static/attestations_travail/')
@@ -104,13 +104,13 @@ class DemandePret(models.Model):
     def __str__(self):
         return f"Demande de prêt de {self.client} - Statut : {self.statut}"
     
-    def soumettre_demande(self, banque_id, offre_id):
-        banque = get_object_or_404(Banque, id=banque_id)
-        offre = Offers.objects.get(id=offre_id)
+    # def soumettre_demande(self, banque_id, offre_id):
+    #     banque = get_object_or_404(Banque, id=banque_id)
+    #     offre = Offers.objects.get(id=offre_id)
 
-        self.banque = banque
-        self.offre = offre
-        self.statut = 'attente'
-        self.save()
+    #     self.banque = banque
+    #     self.offre = offre
+    #     self.statut = 'attente'
+    #     self.save()
     
 

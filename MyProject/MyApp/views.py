@@ -1,4 +1,13 @@
 from imaplib import _Authenticator
+import base64
+from Crypto.Cipher import DES3
+from Crypto.Util.Padding import unpad
+from base64 import b64decode
+import pyDes
+from django.core.files import File
+from io import BytesIO
+import io
+from django.core.files.base import ContentFile
 from django import views
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required 
@@ -12,9 +21,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from MyApp.permissions import Is_Client, Is_AdminBanque
 from .models import *
-from .serializers import (BanqueSerializer, DemandePretSerializer, PretSerializer,ClientSerializer, OffreSerializer,
-                           DemandePretWithOffreSerializer, ClientRegisterSerializer, 
-                           AdminBanqueregisterSerializer, enregistrerserializer, registerclientbank)
+from .serializers import *
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 from django.db.models.signals import post_save
@@ -26,7 +33,7 @@ from rest_framework.exceptions import ValidationError
 ########################## Banque API ##################
 
 class BanqueAPIView(APIView):
-    permission_classes = [IsAuthenticated&Is_Client]
+    #permission_classes = [IsAuthenticated&Is_Client]
     def get(self, request):
         banques = Banque.objects.all()
         serializer = BanqueSerializer(banques, many=True)
@@ -311,41 +318,70 @@ class DemandeAPI(APIView):
             }
         }, status=400)
 class SoumettreDemandeView(APIView):
-    permission_classes = [IsAuthenticated&Is_Client]
+    permission_classes = [IsAuthenticated & Is_Client]
+
     def post(self, request):
         banque_id = request.data.get('banque_id')
         offre_id = request.data.get('offre_id')
 
         if request.user.is_authenticated:
-          demande = DemandePret(
-            client = request.user.client,  # Récupérer le client associé à l'utilisateur connecté
-            num_telephone=request.data.get('num_telephone'),
-            numero_compt=request.data.get('numero_compt'),
-            Salaire=request.data.get('Salaire'),
-            cni=request.FILES.get('cni'),
-            demande=request.FILES.get('demande'),
-            contrat_de_travail=request.FILES.get('contrat_de_travail'),
-            attestation_travail=request.FILES.get('attestation_travail'),
-            justification_adresse=request.FILES.get('justification_adresse'),
-            bulletins_de_salaire=request.FILES.get('bulletins_de_salaire'),
-          )
+            try:
+                client_instance = Client.objects.get(user=request.user)
+            except Client.DoesNotExist:
+                return Response({'message': 'Client instance not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
-          demande.soumettre_demande(banque_id=banque_id, offre_id=offre_id)
+            demande = DemandePret(
+                client=client_instance,
+                num_telephone=request.data.get('num_telephone'),
+                numero_compt=request.data.get('numero_compt'),
+                Salaire=request.data.get('Salaire'),
+            )
 
-          return Response({'message': 'Demande soumise avec succès',
-                'banque': demande.banque,
-                'offre': demande.offre,
-                'num_telephone': demande.num_telephone,
-                'numero_compt': demande.numero_compt,
-                'Salaire': demande.Salaire,
-                'cni': demande.cni,
-                'demandeecrit': demande.demande,
-                'contrat_de_travail': demande.contrat_de_travail,
-                'attestation_travail': demande.attestation_travail,
-                'justification_adresse': demande.justification_adresse,
-                'bulletins_de_salaire': demande.bulletins_de_salaire,
-                }, status=status.HTTP_201_CREATED)
-        return Response({'message': 'user non autentifi'})
+            # Handle file uploads separately to avoid decoding issues
+            cni_file = request.FILES.get('cni')
+            demande_file = request.FILES.get('demande')
+            contrat_de_travail_file = request.FILES.get('contrat_de_travail')
+            attestation_travail_file = request.FILES.get('attestation_travail')
+            justification_adresse_file = request.FILES.get('justification_adresse')
+            bulletins_de_salaire_file = request.FILES.get('bulletins_de_salaire')
+
+            # Assign the uploaded files to the respective fields
+            if cni_file:
+                demande.cni.save(cni_file.name, ContentFile(cni_file.read()))
+            if demande_file:
+                demande.demande.save(demande_file.name, ContentFile(demande_file.read()))
+            if contrat_de_travail_file:
+                demande.contrat_de_travail.save(contrat_de_travail_file.name, ContentFile(contrat_de_travail_file.read()))
+            if attestation_travail_file:
+                demande.attestation_travail.save(attestation_travail_file.name, ContentFile(attestation_travail_file.read()))
+            if justification_adresse_file:
+                demande.justification_adresse.save(justification_adresse_file.name, ContentFile(justification_adresse_file.read()))
+            if bulletins_de_salaire_file:
+                demande.bulletins_de_salaire.save(bulletins_de_salaire_file.name, ContentFile(bulletins_de_salaire_file.read()))
+
+            demande.save()
+
+            # demande.soumettre_demande(banque_id=banque_id, offre_id=offre_id)
+
+            return Response(
+                {
+                    'message': 'Demande soumise avec succès',
+                    #'banque': demande.banque,
+                    #'offre': demande.offre,
+                    'num_telephone': demande.num_telephone,
+                    'numero_compt': demande.numero_compt,
+                    'Salaire': demande.Salaire,
+                    'cni': demande.cni.url if demande.cni else None,
+                    'demandeecrit': demande.demande.url if demande.demande else None,
+                    'contrat_de_travail': demande.contrat_de_travail.url if demande.contrat_de_travail else None,
+                    'attestation_travail': demande.attestation_travail.url if demande.attestation_travail else None,
+                    'justification_adresse': demande.justification_adresse.url if demande.justification_adresse else None,
+                    'bulletins_de_salaire': demande.bulletins_de_salaire.url if demande.bulletins_de_salaire else None,
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response({'message': 'Utilisateur non authentifié.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 ######################### accepter demande ###########
 
@@ -483,7 +519,7 @@ class ClientCreateView(APIView):
 
 class CreateView(APIView):
     def post(self, request):
-      serializer = registerclientbank(data=request.data)
+      serializer = ClientBanqueSerializer(data=request.data)
       if serializer.is_valid():
         banque_id = serializer.validated_data['banque_id']
 
@@ -518,13 +554,164 @@ class CreateView(APIView):
 
 
         
+# class CreerClientBanqueAPIView(APIView):
+#     def post(self, request):
+#         nni = request.data.get('nni')
+#         banque_id = request.data.get('banque_id')
+
+#         # Vérification du NNI
+#         try:
+#             client = client_banque.objects.get(NNI=nni)
+#             return Response({'message': 'Le NNI existe déjà dans la base de données.'}, status=400)
+#         except client_banque.DoesNotExist:
+#             return Response({'message': 'does not existe'})
+
+#         # Vérification de la banque
+#         try:
+#             banque = Banque.objects.get(id=banque_id)
+#         except Banque.DoesNotExist:
+#             return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
+
+#         # Création du client de la banque
+#         num_compte = request.data.get('num_compte')
+#         client_banque = ClientBanque(NNI=nni, num_compte=num_compte, banque=banque)
+#         client_banque.save()
+
+#         return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
+
+
+# class CreerClientBanqueAPIView(APIView):
+#     def post(self, request):
+#         serializer = registerclientbank(data=request.data)
+
+#         if serializer.is_valid():
+#             nni = serializer.validated_data['nni']
+#             banque_id = serializer.validated_data['banque_id']
+
+#             # Vérification du NNI
+#             if client_banque.objects.filter(NNI=nni).exists():
+#                 return Response({'message': 'Le NNI existe déjà dans la base de données.'}, status=400)
+
+#             # Vérification de la banque
+#             try:
+#                 banque = Banque.objects.get(id=banque_id)
+#             except Banque.DoesNotExist:
+#                 return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
+
+#             # Création du client de la banque
+#             num_compte = serializer.validated_data['num_compte']
+#             client_banque = client_banque(NNI=nni, num_compte=num_compte, banque=banque)
+#             client_banque.save()
+
+#             return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
+#         else:
+#             return Response(serializer.errors, status=400)
+
+
+# class CreerClientBanqueAPIView(APIView):
+#     def post(self, request):
+#         serializer = registerclientbank(data=request.data)
+
+#         if serializer.is_valid():
+#             NNI = serializer.validated_data['NNI']
+#             banque_id = request.data.get('banque_id')
+
+#             # Vérification du NNI dans le modèle ClientNNI
+#             if client_nni.objects.filter(NNI=serializer.validated_data['NNI']).exists():
+#                 # Vérification de la banque
+#                 try:
+#                     banque = Banque.objects.get(id=banque_id)
+#                 except Banque.DoesNotExist:
+#                     return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
+
+#                 # Création du client de la banque
+#                 num_compte = serializer.validated_data['num_compte']
+#                 client_bank = client_banque(NNI=NNI, num_compte=num_compte, banque=banque)
+#                 client_bank.save()
+
+#                 return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
+#             else:
+#                 return Response({'message': 'Le NNI n\'existe pas dans la base de données.'}, status=404)
+#         else:
+#             return Response(serializer.errors, status=400)
 
 
 
+# class CreerClientBanqueAPIView(APIView):
+#     def post(self, request):
+#         serializer = registerclientbank(data=request.data)
 
+#         if serializer.is_valid():
+#             NNI = serializer.validated_data['NNI']
+#             banque_id = request.data.get('banque_id')
 
+#             # Vérification du NNI dans le modèle ClientNNI
+#             if client_nni.objects.filter(NNI=NNI).exists():
+#                 # Vérification de la banque
+#                 if Banque.objects.filter(id=banque_id).exists():
+#                     banque = Banque.objects.get(id=banque_id)
 
+#                     # Création du client de la banque
+#                     num_compte = serializer.validated_data['num_compte']
+#                     client_bank = client_banque(NNI=NNI, num_compte=num_compte, banque=banque)
+#                     client_bank.save()
 
+#                     return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
+#                 else:
+#                     return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
+#             else:
+#                 return Response({'message': 'Le NNI n\'existe pas dans la base de données.'}, status=404)
+#         else:
+#             return Response(serializer.errors, status=400)
 
+# class CreerClientBanqueAPIView(APIView):
+#     def post(self, request):
+#         serializer = ClientBanqueSerializer(data=request.data)
 
+#         if serializer.is_valid():
+#             nni = serializer.validated_data['nni']
+#             banque_id = request.data.get('banque_id')
 
+#             # Vérification du NNI dans le modèle ClientNNI
+#             if client_nni.objects.filter(NNI=nni).exists():
+#                 try:
+#                     banque = Banque.objects.get(id=banque_id)
+#                 except Banque.DoesNotExist:
+#                     return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
+
+#                 # Création du client de la banque
+#                 num_compte = serializer.validated_data['num_compte']
+#                 client_banq = client_banque(NNI=nni, num_compte=num_compte, banque=banque)
+#                 client_banq.save()
+
+#                 return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
+#             else:
+#                 return Response({'message': 'Le NNI n\'existe pas dans la base de données.'}, status=404)
+#         else:
+#             return Response(serializer.errors, status=400)
+
+class CreerClientBanqueAPIView(APIView):
+    def post(self, request):
+        serializer = ClientBanqueSerializer(data=request.data)
+
+        if serializer.is_valid():
+            nni = serializer.validated_data.get('nni')
+            banque_id = request.data.get('banque_id')
+
+            # Vérification du NNI dans le modèle ClientNNI
+            if client_nni.objects.filter(NNI=nni).exists():
+                try:
+                    banque = Banque.objects.get(id=banque_id)
+                except Banque.DoesNotExist:
+                    return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
+
+                # Création du client de la banque
+                num_compte = serializer.validated_data.get('num_compte')
+                client_banq = client_banque(NNI=nni, num_compte=num_compte, banque=banque)
+                client_banq.save()
+
+                return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
+            else:
+                return Response({'message': 'Le NNI n\'existe pas dans la base de données.'}, status=404)
+        else:
+            return Response(serializer.errors, status=400)

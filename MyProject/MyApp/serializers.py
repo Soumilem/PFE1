@@ -91,10 +91,13 @@ class enregistrerserializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class registerclientbank(serializers.ModelSerializer):
+class ClientBanqueSerializer(serializers.ModelSerializer):
+    nni = enregistrerserializer()
+
     class Meta:
         model = client_banque
-        fields = '__all__'
+        fields = ['nni', 'num_compte', 'banque_id']
+
 
 
 
