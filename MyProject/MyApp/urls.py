@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import *
 urlpatterns = [
-    path('banques/', BanqueAPIView.as_view(), name='banque-api'),
+    path('creerbanques/', CreerBanqueView.as_view(), name='banque-api'),
+    path('getbanques/', BanqueAPIView.as_view(), name='banque-api'),
     path('banques/<int:id>/', BanqueDetail.as_view(), name='banque-detail-api'),
     path('banques/<int:id>/update/', BanqueUpdate.as_view(), name='banque-update-api'),
     path('banques/<int:id>/delete/', BanqueDelete.as_view(), name='banque-delete-api'),
@@ -29,9 +30,9 @@ urlpatterns = [
     path('demandeOffre/soumettre/', SoumettreDemandeView.as_view(), name='soumettre_demande'),
 
     ########## Authentification 
-    path('register/client/', ClientRegisterView.as_view(), name='client-register'),
-    path('register/banque/', AdminBanqueRegister.as_view(), name='banque-register'),
-    path('login/', UserLoginView.as_view(), name='user-login'),
+    path('register/', RegisterVendorAPI.as_view(), name='client-register'),
+    #path('register/banque/', RegisterResponsableBanqueView.as_view(), name='banque-register'),
+    path('login/', MytokenManager.as_view(), name='user-login'),
     #path('register/', RegisterView.as_view(), name='register'),
     #path('login/', LoginView.as_view(), name='login'),
 

@@ -1,8 +1,8 @@
-import decimal
 from imaplib import _Authenticator
 import base64
 from Crypto.Cipher import DES3
 from Crypto.Util.Padding import unpad
+from rest_framework.exceptions import APIException
 from base64 import b64decode
 import pyDes
 from django.core.files import File
@@ -30,11 +30,26 @@ from rest_framework.exceptions import ValidationError
 
 # Create your views here.
 
-
 ########################## Banque API ##################
 
+class CreerBanqueView(APIView):
+    def post(self, request):
+        nom_banque = request.data.get('nom_banque')
+
+        # Vérifier si une banque avec le même nom existe déjà
+        try:
+            banque = Banque.objects.get(nom_banque=nom_banque)
+            return Response({'message': 'Une banque avec ce nom existe déjà.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Banque.DoesNotExist:
+            pass
+
+        banque = Banque(nom_banque=nom_banque)
+        banque.save()
+
+        return Response({'message': 'Banque créée avec succès.', 'banque_id': banque.id}, status=status.HTTP_201_CREATED)
+
 class BanqueAPIView(APIView):
-    #permission_classes = [IsAuthenticated&Is_Client]
+    permission_classes = [IsAuthenticated&Is_Client]
     def get(self, request):
         banques = Banque.objects.all()
         serializer = BanqueSerializer(banques, many=True)
@@ -49,7 +64,6 @@ class BanqueDetail(APIView):
         
         serializer = BanqueSerializer(banque)
         return Response(serializer.data)
-
 
 class BanqueUpdate(APIView):
     def put(self, request, id):
@@ -73,8 +87,7 @@ class BanqueDelete(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         
         banque.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
+        return Response({'message': 'delete succeful'},status=status.HTTP_204_NO_CONTENT)
 
 ########################## Client API ##################
 
@@ -82,10 +95,9 @@ class CLientAPIView(APIView):
     permission_classes =[IsAdminUser]
     def get(self, request):
         client = Client.objects.all()
-        serializer = ClientRegisterSerializer(client, many=True)
+        serializer = ClientSerializer(client, many=True)
         return Response(serializer.data)
 
-    
 class ClientDetail(APIView):
     def get(self, request, id):
         try:
@@ -95,7 +107,6 @@ class ClientDetail(APIView):
         
         serializer = ClientSerializer(client)
         return Response(serializer.data)
-
 
 class ClientUpdate(APIView):
     def put(self, request, id):
@@ -192,7 +203,6 @@ class OffreDetail(APIView):
         
         serializer = BanqueSerializer(offre)
         return Response(serializer.data)
-
 
 class OffreUpdate(APIView):
     permission_classes = [IsAuthenticated&Is_AdminBanque]
@@ -342,7 +352,6 @@ class DemandeView(APIView):
         return Response({'message': 'Utilisateur non authentifié.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 ############################# soumettre en demande ###############
-
 class DemandeAPI(APIView):
     def post(self, request):
         # Récupérer les critères de sélection de la banque depuis la requête
@@ -386,6 +395,7 @@ class DemandeAPI(APIView):
                 'demande_errors': demande_serializer.errors
             }
         }, status=400)
+
 class SoumettreDemandeView(APIView):
     permission_classes = [IsAuthenticated & Is_Client]
 
@@ -482,99 +492,83 @@ class RefuserDemandeView(APIView):
         return Response({'message': 'La demande a été refusée.'})
 
 #####################################
-class ClientRegisterView(APIView):
-    permission_classes = [AllowAny]
 
-    def post(self, request):
-        serializer = ClientRegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            @receiver(post_save, sender=User)
-            def set_user_as_client(sender, instance, created, **kwargs):
-                 if created:
-                   instance.is_client = True
-                   instance.save()
-            
+#################################### reg``ister AdminBanque ######################################    
+class RegisterVendorAPI(TokenObtainPairView):
+    serializer_classes = {
+        'Client': RegisterVendorSerializer,
+        'AdminBanque': RegisterManagerSerializer
+    }
+
+    def get_serializer_class(self):
+        role = self.request.data.get('role', False)
+        serializer_class = self.serializer_classes.get(role)
+        return serializer_class
+
+    def post(self, request, *args, **kwargs):
+        phone = request.data.get('phone', False)
+        password = request.data.get('password', False)
+        role = request.data.get('role', False)
+
+        if phone and password and role:
+            serializer_class = self.get_serializer_class()
+            if serializer_class is None:
+                return Response({'status': status.HTTP_400_BAD_REQUEST, 'Message': 'Invalid role'})
+
+            serializer = serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
             try:
-                clien_nni=CLientNNI.objects.get(NNI=serializer.validated_data['nni'])
-            except CLientNNI.DoesNotExist:
-                return Response({"nni":"not_exit_nni"},status=status.HTTP_400_BAD_REQUEST)
-            
-            if  Client.objects.filter(nni=serializer.validated_data['nni']).exists():
-                return Response({"exit":"client exist already"},status=status.HTTP_400_BAD_REQUEST)
+                user = serializer.save()
+                user.set_password(password)
+                user.save()
+                refresh = RefreshToken.for_user(user)
 
-            # try:
-            #     clientexit=Client.objects.get(nni=serializer.validated_data['nni'])
-            # except Client.DoesNotExist:
-            #     return Response({"exit":"not_exit_nni"},status=status.HTTP_400_BAD_REQUEST)
-            
-            user = User.objects.create_user(
-                username=serializer.validated_data['username'],
-                password=serializer.validated_data['password']
-            )
-            client = Client.objects.create(
-                user=user,
-                nni=serializer.validated_data['nni'],
-                nom=serializer.validated_data['nom'],
-                prenom=serializer.validated_data['prenom'],
-                num_telephone=serializer.validated_data['num_telephone']
-            )
-            return Response({'message': 'Client registered successfully.'})
-        return Response(serializer.errors)
-    
-#################################### register AdminBanque ######################################    
-class AdminBanqueRegister(APIView):
-    permission_classes = [AllowAny]
+                return Response({
+                    'phone': user.phone,
+                    'nom': user.nom,
+                    'role': user.role,
+                    'token': str(refresh.access_token),
+                    'refresh_token': str(refresh)
+                })
+            except:
+                return Response({'status': status.HTTP_400_BAD_REQUEST, 'Message': 'Bad request'})
 
-    def post(self, request):
-        serializer = AdminBanqueregisterSerializer(data=request.data)
-        if serializer.is_valid():
-            @receiver(post_save, sender=User)
-            def set_user_as_admin(sender, instance, created, **kwargs):
-             if created:
-               instance.is_admin = True
-               instance.save()
-            user = User.objects.create_user(
-                username=serializer.validated_data['username'],
-                password=serializer.validated_data['password']
-            )
-            
-
-
-            admin_banque = Banque.objects.create(
-                user=user,
-                #nom=serializer.validated_data['nom'],
-                #prenom=serializer.validated_data['prenom'],
-                num_telephone=serializer.validated_data['num_telephone'],
-                nom_banque=serializer.validated_data['nom_banque'],
-                logo_banque=serializer.validated_data['logo_banque']
-            )
-            #user = serializer.save()
-            refresh_token = RefreshToken.for_user(user)
-            return Response({
-                'message': 'User registered successfully',
-                'refresh': str(refresh_token),
-                'access': str(refresh_token.access_token),
-            }, status=status.HTTP_201_CREATED)
-                
-        return Response(serializer.errors)
+        return Response({'status': status.HTTP_400_BAD_REQUEST, 'Message': 'Envoyez le numéro de telephone exist'})
 
 ######################################## login ########################################
 
-class UserLoginView(APIView):
-    permission_classes = [AllowAny]
+class InvalidInformationException(APIException):
+    status_code = 400
+    default_detail = 'Informations invalides'
 
-    def post(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        user = authenticate(username=username, password=password)
-        if user:
-            login(request, user)
-            refresh = RefreshToken.for_user(user)
+class MytokenManager(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairManagerSerializer
+    
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
             return Response({
-                'access_token': str(refresh.access_token),
-                'refresh_token': str(refresh)
-            })
-        return Response({'error': 'Invalid credentials.'})
+            'message': 'Informations invalides',
+            'status':status.HTTP_400_BAD_REQUEST, 
+        })
+            
+        
+        user = serializer.validated_data
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'message': 'login success',
+            'status':status.HTTP_200_OK, 
+            'id': user.id,
+            'role':user.role,
+            'nom': user.nom,
+            'phone': user.phone,
+            'access': str(refresh.access_token),
+            'refresh_token': str(refresh),  
+        })
     
 ################################# enregistrer nni dans base de donnes #######################
 
@@ -586,211 +580,9 @@ class ClientCreateView(APIView):
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
-
-
-class CreateView(APIView):
-    def post(self, request):
-      serializer = ClientBanqueSerializer(data=request.data)
-      if serializer.is_valid():
-        banque_id = serializer.validated_data['banque_id']
-
-        try:
-             clien_nni=CLientNNI.objects.get(NNI=serializer.validated_data['nni'])
-        except CLientNNI.DoesNotExist:
-                return Response({"nni":"not_exit_nni"},status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-         banque = Banque.objects.get(id=banque_id)
-        except Banque.DoesNotExist:
-            return Response({"banque": "La banque n'existe pas."}, status=status.HTTP_400_BAD_REQUEST)
-
-            
-        
-        clienbank = ClientBanque.objects.create(
-                nni =serializer.validated_data['nni'],
-                num_compte =serializer.validated_data['num_compte'],
-                banque= banque_id,
-                #nom=serializer.validated_data['nom'],
-                #prenom=serializer.validated_data['prenom'],
-                #num_compte=serializer.validated_data['num_compte'],
-                #=serializer.validated_data['nom_banque'],
-                #logo_banque=serializer.validated_data['logo_banque']
-            )
-        #return Response({"exit":"client exist already"},status=status.HTTP_400_BAD_REQUEST)
-
-       
-        #serializer.save()
-        return Response(serializer.data, status=201)
-      return Response(serializer.errors, status=400)
-
-
-        
-# class CreerClientBanqueAPIView(APIView):
-#     def post(self, request):
-#         nni = request.data.get('nni')
-#         banque_id = request.data.get('banque_id')
-
-#         # Vérification du NNI
-#         try:
-#             client = client_banque.objects.get(NNI=nni)
-#             return Response({'message': 'Le NNI existe déjà dans la base de données.'}, status=400)
-#         except client_banque.DoesNotExist:
-#             return Response({'message': 'does not existe'})
-
-#         # Vérification de la banque
-#         try:
-#             banque = Banque.objects.get(id=banque_id)
-#         except Banque.DoesNotExist:
-#             return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
-
-#         # Création du client de la banque
-#         num_compte = request.data.get('num_compte')
-#         client_banque = ClientBanque(NNI=nni, num_compte=num_compte, banque=banque)
-#         client_banque.save()
-
-#         return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
-
-
-# class CreerClientBanqueAPIView(APIView):
-#     def post(self, request):
-#         serializer = registerclientbank(data=request.data)
-
-#         if serializer.is_valid():
-#             nni = serializer.validated_data['nni']
-#             banque_id = serializer.validated_data['banque_id']
-
-#             # Vérification du NNI
-#             if client_banque.objects.filter(NNI=nni).exists():
-#                 return Response({'message': 'Le NNI existe déjà dans la base de données.'}, status=400)
-
-#             # Vérification de la banque
-#             try:
-#                 banque = Banque.objects.get(id=banque_id)
-#             except Banque.DoesNotExist:
-#                 return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
-
-#             # Création du client de la banque
-#             num_compte = serializer.validated_data['num_compte']
-#             client_banque = client_banque(NNI=nni, num_compte=num_compte, banque=banque)
-#             client_banque.save()
-
-#             return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
-#         else:
-#             return Response(serializer.errors, status=400)
-
-
-# class CreerClientBanqueAPIView(APIView):
-#     def post(self, request):
-#         serializer = registerclientbank(data=request.data)
-
-#         if serializer.is_valid():
-#             NNI = serializer.validated_data['NNI']
-#             banque_id = request.data.get('banque_id')
-
-#             # Vérification du NNI dans le modèle ClientNNI
-#             if client_nni.objects.filter(NNI=serializer.validated_data['NNI']).exists():
-#                 # Vérification de la banque
-#                 try:
-#                     banque = Banque.objects.get(id=banque_id)
-#                 except Banque.DoesNotExist:
-#                     return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
-
-#                 # Création du client de la banque
-#                 num_compte = serializer.validated_data['num_compte']
-#                 client_bank = client_banque(NNI=NNI, num_compte=num_compte, banque=banque)
-#                 client_bank.save()
-
-#                 return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
-#             else:
-#                 return Response({'message': 'Le NNI n\'existe pas dans la base de données.'}, status=404)
-#         else:
-#             return Response(serializer.errors, status=400)
-
-
-
-# class CreerClientBanqueAPIView(APIView):
-#     def post(self, request):
-#         serializer = registerclientbank(data=request.data)
-
-#         if serializer.is_valid():
-#             NNI = serializer.validated_data['NNI']
-#             banque_id = request.data.get('banque_id')
-
-#             # Vérification du NNI dans le modèle ClientNNI
-#             if client_nni.objects.filter(NNI=NNI).exists():
-#                 # Vérification de la banque
-#                 if Banque.objects.filter(id=banque_id).exists():
-#                     banque = Banque.objects.get(id=banque_id)
-
-#                     # Création du client de la banque
-#                     num_compte = serializer.validated_data['num_compte']
-#                     client_bank = client_banque(NNI=NNI, num_compte=num_compte, banque=banque)
-#                     client_bank.save()
-
-#                     return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
-#                 else:
-#                     return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
-#             else:
-#                 return Response({'message': 'Le NNI n\'existe pas dans la base de données.'}, status=404)
-#         else:
-#             return Response(serializer.errors, status=400)
-
-# class CreerClientBanqueAPIView(APIView):
-#     def post(self, request):
-#         serializer = ClientBanqueSerializer(data=request.data)
-
-#         if serializer.is_valid():
-#             nni = serializer.validated_data['nni']
-#             banque_id = request.data.get('banque_id')
-
-#             # Vérification du NNI dans le modèle ClientNNI
-#             if client_nni.objects.filter(NNI=nni).exists():
-#                 try:
-#                     banque = Banque.objects.get(id=banque_id)
-#                 except Banque.DoesNotExist:
-#                     return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
-
-#                 # Création du client de la banque
-#                 num_compte = serializer.validated_data['num_compte']
-#                 client_banq = client_banque(NNI=nni, num_compte=num_compte, banque=banque)
-#                 client_banq.save()
-
-#                 return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
-#             else:
-#                 return Response({'message': 'Le NNI n\'existe pas dans la base de données.'}, status=404)
-#         else:
-#             return Response(serializer.errors, status=400)
-
-# class CreerClientBanqueAPIView(APIView):
-#     def post(self, request):
-#         serializer = ClientBanqueSerializer(data=request.data)
-
-#         if serializer.is_valid():
-#             nni = serializer.validated_data.get('nni')
-#             banque_id = request.data.get('banque_id')
-
-#             # Vérification du NNI dans le modèle ClientNNI
-#             if CLientNNI.objects.filter(NNI=nni).exists():
-#                 try:
-#                     banque = Banque.objects.get(id=banque_id)
-#                 except Banque.DoesNotExist:
-#                     return Response({'message': 'La banque spécifiée n\'existe pas.'}, status=400)
-
-#                 # Création du client de la banque
-#                 num_compte = serializer.validated_data.get('num_compte')
-#                 client_banq = ClientBanque(NNI=nni, num_compte=num_compte, banque=banque)
-#                 client_banq.save()
-
-#                 return Response({'message': 'Le client de la banque a été créé avec succès.'}, status=201)
-#             else:
-#                 return Response({'message': 'Le NNI n\'existe pas dans la base de données.'}, status=404)
-#         else:
-#             return Response(serializer.errors, status=400)
-
-
-from rest_framework.parsers import JSONParser
 class ClientBanqueCreateAPIView(APIView):
     def post(self, request):
+
         #
         # data=JSONParser().parse(request)
         # print(data)

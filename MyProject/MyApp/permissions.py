@@ -2,14 +2,15 @@ from rest_framework.permissions import BasePermission, IsAdminUser
 class Is_Client(BasePermission):
     def has_permission(self, request, view):
         # Vérifiez ici les conditions spécifiques pour l'autorisation de l'utilisateur de type 1
-        return bool(request.user and request.user.is_client)
+        return bool(request.user and request.user.role == 'Client')
+
     
 
 
 class Is_AdminBanque(BasePermission):
     def has_permission(self, request, view):
         # Vérifiez ici les conditions spécifiques pour l'autorisation de l'utilisateur de type 2
-        return bool(request.user and request.user.is_admin)
+        return bool(request.user and request.user.role == 'AdminBanque')
     
 class IsAdminUserOrReadOnly(IsAdminUser):
     def has_permission(self, request, view):

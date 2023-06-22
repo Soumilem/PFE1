@@ -1,19 +1,45 @@
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.base_user import AbstractBaseUser
+from django.contrib.auth.models import PermissionsMixin
 #from django.contrib.auth import get_user_model
 from django.db import models
 from django.shortcuts import get_object_or_404
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 from django.db.models.signals import post_save
+
+from .manager import UserManager
+
+
 # Create your models here.
 
-class User(AbstractUser):
-    is_client = models.BooleanField(default=False)
-    is_admin = models.BooleanField(default=False)
+Role = (
+        ('Client', 'Client'),
+        ('AdminBanque', 'AdminBanque'),
+    )
+
+class User(AbstractBaseUser,PermissionsMixin):
+    nni = models.CharField(max_length=10)
+    nom = models.CharField(max_length=100)
+    prenom = models.CharField(max_length=100)
+    phone = models.CharField(max_length=16,unique=True)
+    role = models.CharField(max_length=20, choices=Role, default="AdminBanque")
+    is_active= models.BooleanField(default=True)
+    verified= models.BooleanField(default=False)
+    restricted= models.BooleanField(default=False)
+    deleted= models.BooleanField(default=False)
+    is_staff= models.BooleanField(default=False)
+    is_superuser= models.BooleanField(default=False)
+    is_blocked= models.BooleanField(default=False)
+
+    objects = UserManager()
+
+    USERNAME_FIELD = 'phone'
+    
+    REQUIRED_FIELDS = []
 
     def __str__(self) :
-        return self.username
+        return self.nom
 
 @receiver(post_save, sender= settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
@@ -22,25 +48,24 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 
 #User = get_user_model()
 
-class Client(models.Model):
-    nni = models.CharField(max_length=10)
-    nom = models.CharField(max_length=100)
-    prenom = models.CharField(max_length=100)
-    num_telephone = models.PositiveIntegerField()
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    #password = models.CharField(max_length=25)
-    def __str__(self):
-        return f"{self.user}"
+
+class Client(User):
+    is_client = models.BooleanField(default=True)
 
 class Banque(models.Model):
     nom_banque = models.CharField(max_length=100)
-    logo_banque = models.CharField(max_length=10)
-    num_telephone = models.PositiveIntegerField()
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    #password = models.CharField(max_length=25)
-    def __str__(self):
-        return f"{self.user}"
+    #logo_banque = models.CharField(max_length=10)
+    #num_telephone = models.PositiveIntegerField()
     
+    def __str__(self):
+        return f"{self.nom_banque}"
+
+
+class AdminBanque(User):
+    is_admin = models.BooleanField(default=True)
+    banque = models.OneToOneField(Banque, on_delete=models.CASCADE)
+
+
 
 class CLientNNI(models.Model):
     NNI= models.DecimalField(max_digits=10, decimal_places=0, unique=True)
