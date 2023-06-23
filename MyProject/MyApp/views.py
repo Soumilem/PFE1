@@ -35,17 +35,14 @@ from rest_framework.exceptions import ValidationError
 class CreerBanqueView(APIView):
     def post(self, request):
         nom_banque = request.data.get('nom_banque')
-
         # Vérifier si une banque avec le même nom existe déjà
         try:
             banque = Banque.objects.get(nom_banque=nom_banque)
             return Response({'message': 'Une banque avec ce nom existe déjà.'}, status=status.HTTP_400_BAD_REQUEST)
         except Banque.DoesNotExist:
             pass
-
         banque = Banque(nom_banque=nom_banque)
         banque.save()
-
         return Response({'message': 'Banque créée avec succès.', 'banque_id': banque.id}, status=status.HTTP_201_CREATED)
 
 class BanqueAPIView(APIView):
@@ -490,8 +487,6 @@ class RefuserDemandeView(APIView):
         demande.save()
 
         return Response({'message': 'La demande a été refusée.'})
-
-#####################################
 
 #################################### reg``ister AdminBanque ######################################    
 class RegisterVendorAPI(TokenObtainPairView):
